@@ -13,12 +13,14 @@ import type {
   RequestRecord,
   Scoreboard,
 } from "./persistence/game-repository.js";
+import { chooseComputerMove } from "./computer-strategy.js";
 
 export type ServiceErrorCode =
   | MoveError["code"]
   | "GAME_NOT_FOUND"
   | "UNDO_NOT_ALLOWED"
-  | "DUPLICATE_REQUEST";
+  | "DUPLICATE_REQUEST"
+  | "INTERNAL_ERROR";
 export type ServiceError = {
   readonly code: ServiceErrorCode;
   readonly message: string;
@@ -28,7 +30,10 @@ export type ServiceMoveResult =
   | { readonly ok: false; readonly error: ServiceError };
 
 export class GameService {
-  public constructor(private readonly repository: GameSessionRepository) {}
+  public constructor(
+    private readonly repository: GameSessionRepository,
+    private readonly selectComputerMove: typeof chooseComputerMove = chooseComputerMove,
+  ) {}
   public createGame(mode: GameMode = "two-player"): GameSession {
     return this.repository.create(mode, initializeGame());
   }
@@ -116,19 +121,26 @@ export class GameService {
     let state = result.state;
     let history = [...session.moveHistory, move];
     if (session.mode === "computer" && state.status === "active") {
-      const index = state.board.findIndex((cell) => cell === null);
-      if (index >= 0) {
-        const computerMove: Move = {
-          player: "O",
-          row: Math.floor(index / 3) + 1,
-          column: (index % 3) + 1,
+      const computerMove = this.selectComputerMove(state.board);
+      if (computerMove === null)
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "The computer could not make a valid move; the game was not changed.",
+          },
         };
-        const computerResult = makeMove(state, computerMove);
-        if (computerResult.ok) {
-          state = computerResult.state;
-          history = [...history, computerMove];
-        }
-      }
+      const computerResult = makeMove(state, computerMove);
+      if (!computerResult.ok)
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "The computer could not make a valid move; the game was not changed.",
+          },
+        };
+      state = computerResult.state;
+      history = [...history, computerMove];
     }
     const next = { ...session, state, moveHistory: history };
     const request: RequestRecord | undefined = requestId

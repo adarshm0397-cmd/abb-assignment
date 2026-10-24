@@ -148,4 +148,33 @@ describe("game REST API", () => {
       draws: 0,
     });
   });
+
+  it("returns the complete server-selected computer turn and undoes it as a pair", async () => {
+    const app = makeApp();
+    const created = await request(app)
+      .post("/api/games")
+      .send({ mode: "computer" });
+    const id = created.body.id as string;
+
+    const moved = await request(app)
+      .post(`/api/games/${id}/moves`)
+      .send({ player: "X", row: 1, column: 1, requestId: "computer-1" });
+    expect(moved.status).toBe(200);
+    expect(moved.body.board).toEqual([
+      "X", null, null,
+      null, "O", null,
+      null, null, null,
+    ]);
+    expect(moved.body.currentPlayer).toBe("X");
+    expect(moved.body.moveHistory).toEqual([
+      { moveNumber: 1, player: "X", row: 1, column: 1 },
+      { moveNumber: 2, player: "O", row: 2, column: 2 },
+    ]);
+
+    const undone = await request(app).post(`/api/games/${id}/undo`);
+    expect(undone.status).toBe(200);
+    expect(undone.body.board).toEqual([null, null, null, null, null, null, null, null, null]);
+    expect(undone.body.currentPlayer).toBe("X");
+    expect(undone.body.moveHistory).toEqual([]);
+  });
 });
