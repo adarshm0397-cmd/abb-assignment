@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ApiError } from '../../api/client';
-import { getScoreboard, resetScoreboard } from '../../api/scoreboard';
-import type { Scoreboard } from '../../api/types';
-import { AppStatus } from '../../components/AppStatus';
+import { useCallback, useEffect, useState } from "react";
+import { ApiError } from "../../api/client";
+import { getScoreboard, resetScoreboard } from "../../api/scoreboard";
+import type { Scoreboard } from "../../api/types";
+import { AppStatus } from "../../components/AppStatus";
 
 const errorMessage = (error: unknown) =>
-  error instanceof ApiError ? error.message : 'Something went wrong. Please try again.';
+  error instanceof ApiError
+    ? error.message
+    : "Something went wrong. Please try again.";
 
-export function ScoreboardSection({ refreshToken = 0 }: { refreshToken?: number }) {
+export function ScoreboardSection({
+  refreshToken = 0,
+}: {
+  refreshToken?: number;
+}) {
   const [scoreboard, setScoreboard] = useState<Scoreboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingReset, setPendingReset] = useState(false);
@@ -26,10 +32,12 @@ export function ScoreboardSection({ refreshToken = 0 }: { refreshToken?: number 
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load, refreshToken]);
+  useEffect(() => {
+    void load();
+  }, [load, refreshToken]);
 
   const reset = async () => {
-    if (!window.confirm('Reset the scoreboard? This cannot be undone.')) return;
+    if (!window.confirm("Reset the scoreboard? This cannot be undone.")) return;
     setPendingReset(true);
     setError(null);
     try {
@@ -50,12 +58,25 @@ export function ScoreboardSection({ refreshToken = 0 }: { refreshToken?: number 
       {scoreboard && (
         <>
           <dl className="scoreboard-values">
-            <div><dt>X wins</dt><dd>{scoreboard.xWins}</dd></div>
-            <div><dt>O wins</dt><dd>{scoreboard.oWins}</dd></div>
-            <div><dt>Draws</dt><dd>{scoreboard.draws}</dd></div>
+            <div>
+              <dt>X wins</dt>
+              <dd>{scoreboard.xWins}</dd>
+            </div>
+            <div>
+              <dt>O wins</dt>
+              <dd>{scoreboard.oWins}</dd>
+            </div>
+            <div>
+              <dt>Draws</dt>
+              <dd>{scoreboard.draws}</dd>
+            </div>
           </dl>
-          <button type="button" onClick={() => void reset()} disabled={loading || pendingReset}>
-            {pendingReset ? 'Resetting…' : 'Reset scoreboard'}
+          <button
+            type="button"
+            onClick={() => void reset()}
+            disabled={loading || pendingReset}
+          >
+            {pendingReset ? "Resetting…" : "Reset scoreboard"}
           </button>
         </>
       )}
