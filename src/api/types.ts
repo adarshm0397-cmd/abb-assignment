@@ -24,11 +24,11 @@ export interface MoveRequest extends Coordinate {
 export interface GameResponse {
   id: string;
   mode: Mode;
-  board: [Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null];
+  board: [Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null];
   currentPlayer: Player | null;
   status: GameStatus;
   winner: Player | null;
-  winningCells: Coordinate[];
+  winningCells: Coordinate[][];
   moveHistory: Move[];
   canUndo: boolean;
 }

@@ -9,5 +9,13 @@ export default defineConfig(({ mode }) => {
     define: {
       __VITE_API_BASE_URL__: JSON.stringify(env.VITE_API_BASE_URL || '/api'),
     },
+    server: {
+      proxy: {
+        '/api': {
+          target: env.VITE_API_PROXY_TARGET || 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
+    },
   };
 });

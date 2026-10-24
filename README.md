@@ -4,7 +4,7 @@ A full-stack Tic Tac Toe application built with React, TypeScript, Vite, Node.js
 
 ## Current status
 
-The backend includes a standalone game engine and SQLite persistence layer. The frontend currently renders a placeholder screen and the backend still exposes only its health-check endpoint.
+The frontend and backend are connected through Vite's `/api` development proxy. The backend exposes the complete game, move, undo, reset, scoreboard, health, and OpenAPI endpoints.
 
 ## Requirements
 
@@ -34,7 +34,21 @@ npm run dev:backend
 
 The frontend runs on Vite's default development port. The backend runs on `http://localhost:3001` by default.
 
-The backend health check is available at `GET /api/health`. The game API is documented at `GET /api/docs` (OpenAPI JSON is available at `GET /api/openapi.json`). Set `DATABASE_PATH` to choose the SQLite file and `CORS_ORIGIN` to a comma-separated list of allowed browser origins.
+The frontend proxies `/api/*` to the backend, so requests from `http://localhost:5173` work without CORS or a separate frontend configuration. The backend health check is available at `GET /api/health`. The game API is documented at `GET /api/docs` (OpenAPI JSON is available at `GET /api/openapi.json`). Set `DATABASE_PATH` to choose the SQLite file and `CORS_ORIGIN` to a comma-separated list of allowed browser origins.
+
+### API quick check
+
+With `npm run dev` running, these commands exercise the API through the same URL used by the frontend:
+
+```bash
+curl http://localhost:5173/api/health
+curl -X POST http://localhost:5173/api/games \
+  -H 'Content-Type: application/json' \
+  -d '{"mode":"two-player"}'
+curl http://localhost:5173/api/scoreboard
+```
+
+Use the game ID returned by the create request for `GET /api/games/:gameId`, `POST /api/games/:gameId/moves`, `POST /api/games/:gameId/undo`, and `POST /api/games/:gameId/reset`. The backend can also be called directly at `http://localhost:3001/api/*`.
 
 ## Local SQLite database
 
