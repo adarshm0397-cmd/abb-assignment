@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createGame, getGame, resetGame, submitMove } from '../../api/games';
+import { createGame, getGame, resetGame, submitMove, undoGame } from '../../api/games';
 import type { GameResponse } from '../../api/types';
 import { GameSection } from './GameSection';
 
@@ -10,6 +10,7 @@ const mockedCreateGame = createGame as jest.MockedFunction<typeof createGame>;
 const mockedGetGame = getGame as jest.MockedFunction<typeof getGame>;
 const mockedResetGame = resetGame as jest.MockedFunction<typeof resetGame>;
 const mockedSubmitMove = submitMove as jest.MockedFunction<typeof submitMove>;
+const mockedUndoGame = undoGame as jest.MockedFunction<typeof undoGame>;
 
 const game = (overrides: Partial<GameResponse> = {}): GameResponse => ({
   id: 'game-1',
@@ -61,6 +62,7 @@ describe('GameSection', () => {
     mockedSubmitMove.mockResolvedValue(game({
       board: ['X', null, null, null, null, null, null, null, null],
       currentPlayer: 'O',
+      moveHistory: [{ moveNumber: 1, player: 'X', row: 1, column: 1 }],
     }));
     render(<GameSection />);
     await userEvent.click(screen.getByRole('button', { name: 'New game' }));
@@ -69,6 +71,89 @@ describe('GameSection', () => {
 
     await waitFor(() => expect(mockedSubmitMove).toHaveBeenCalledWith('game-1', expect.objectContaining({ row: 1, column: 1, player: 'X' })));
     expect(await screen.findByText('It is O\'s turn.')).toBeInTheDocument();
+    expect(screen.getByText('Move 1: X — row 1, column 1')).toBeInTheDocument();
+  });
+
+  it('renders the server history in chronological order with one-based coordinates', async () => {
+    mockedCreateGame.mockResolvedValue(game({
+      moveHistory: [
+        { moveNumber: 1, player: 'X', row: 3, column: 2 },
+        { moveNumber: 2, player: 'O', row: 1, column: 3 },
+      ],
+      canUndo: true,
+    }));
+    render(<GameSection />);
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+
+    await screen.findByText('Move 1: X — row 3, column 2');
+    const entries = screen.getAllByRole('listitem');
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toHaveTextContent('Move 1: X — row 3, column 2');
+    expect(entries[1]).toHaveTextContent('Move 2: O — row 1, column 3');
+  });
+
+  it('enables undo only when the server allows it and follows the returned state', async () => {
+    mockedCreateGame.mockResolvedValue(game({
+      board: ['X', null, null, null, null, null, null, null, null],
+      currentPlayer: 'O',
+      moveHistory: [{ moveNumber: 1, player: 'X', row: 1, column: 1 }],
+      canUndo: true,
+    }));
+    mockedUndoGame.mockResolvedValue(game());
+    render(<GameSection />);
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    const undo = await screen.findByRole('button', { name: 'Undo' });
+    expect(undo).toBeEnabled();
+    await userEvent.click(undo);
+
+    await waitFor(() => expect(mockedUndoGame).toHaveBeenCalledWith('game-1'));
+    expect(screen.getByRole('gridcell', { name: 'Row 1, column 1' })).toHaveTextContent('');
+    expect(screen.getByText('No moves yet.')).toBeInTheDocument();
+    expect(screen.getByText('Move undone.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  });
+
+  it('disables undo while a request is pending and preserves state on failure', async () => {
+    const pending = deferred<GameResponse>();
+    mockedCreateGame.mockResolvedValue(game({
+      board: ['X', null, null, null, null, null, null, null, null],
+      currentPlayer: 'O',
+      moveHistory: [{ moveNumber: 1, player: 'X', row: 1, column: 1 }],
+      canUndo: true,
+    }));
+    mockedUndoGame.mockReturnValue(pending.promise);
+    render(<GameSection />);
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(screen.getByRole('button', { name: 'Undoing…' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Undoing…' }));
+    expect(mockedUndoGame).toHaveBeenCalledTimes(1);
+
+    pending.reject(new Error('Undo service unavailable'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
+    expect(screen.getByRole('gridcell', { name: 'Row 1, column 1, X' })).toHaveTextContent('X');
+    expect(screen.getByText('Move 1: X — row 1, column 1')).toBeInTheDocument();
+  });
+
+  it('uses the backend result for computer-mode undo pairs', async () => {
+    mockedCreateGame.mockResolvedValue(game({
+      mode: 'computer',
+      board: ['X', null, 'O', null, null, null, null, null, null],
+      currentPlayer: 'X',
+      moveHistory: [
+        { moveNumber: 1, player: 'X', row: 1, column: 1 },
+        { moveNumber: 2, player: 'O', row: 1, column: 3 },
+      ],
+      canUndo: true,
+    }));
+    mockedUndoGame.mockResolvedValue(game({ mode: 'computer' }));
+    render(<GameSection />);
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+
+    await waitFor(() => expect(mockedUndoGame).toHaveBeenCalledWith('game-1'));
+    expect(screen.getByText('No moves yet.')).toBeInTheDocument();
+    expect(screen.getByText("It is X's turn.")).toBeInTheDocument();
   });
 
   it('shows a win and highlights the server-provided winning cells', async () => {
@@ -88,6 +173,25 @@ describe('GameSection', () => {
     expect(await screen.findByText('X wins!')).toBeInTheDocument();
     expect(screen.getAllByRole('gridcell').slice(0, 3).every((cell) => cell.className.includes('game-cell--winner'))).toBe(true);
     expect(screen.getByRole('gridcell', { name: 'Row 2, column 1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  });
+
+  it('keeps undo unavailable for a draw and clears history from a fresh reset state', async () => {
+    mockedCreateGame.mockResolvedValue(game({
+      moveHistory: [{ moveNumber: 1, player: 'X', row: 2, column: 2 }],
+      canUndo: true,
+    }));
+    mockedResetGame.mockResolvedValue({ game: game({ id: 'game-2' }) });
+    render(<GameSection />);
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    expect(await screen.findByText('Move 1: X — row 2, column 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Reset game' }));
+    expect(await screen.findByText('No moves yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+
+    mockedCreateGame.mockResolvedValueOnce(game({ status: 'draw', currentPlayer: null, canUndo: false }));
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
   });
 
   it('prevents duplicate submissions while a move is pending', async () => {

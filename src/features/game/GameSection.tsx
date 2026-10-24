@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { AppStatus } from '../../components/AppStatus';
 import { ApiError } from '../../api/client';
-import { createGame, getGame, resetGame, submitMove } from '../../api/games';
+import { createGame, getGame, resetGame, submitMove, undoGame } from '../../api/games';
 import type { GameResponse, Mode, Player } from '../../api/types';
 
 const errorMessage = (error: unknown) =>
@@ -25,7 +25,9 @@ export function GameSection() {
   const [game, setGame] = useState<GameResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingMove, setPendingMove] = useState(false);
+  const [pendingUndo, setPendingUndo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [undoMessage, setUndoMessage] = useState<string | null>(null);
   const requestNumber = useRef(0);
   const sessionNumber = useRef(0);
 
@@ -43,8 +45,10 @@ export function GameSection() {
     const session = ++sessionNumber.current;
     const request = ++requestNumber.current;
     setPendingMove(false);
+    setPendingUndo(false);
     setLoading(true);
     setError(null);
+    setUndoMessage(null);
     try {
       const nextGame = await createGame({ mode });
       if (request === requestNumber.current && session === sessionNumber.current) {
@@ -67,8 +71,10 @@ export function GameSection() {
     const session = ++sessionNumber.current;
     const request = ++requestNumber.current;
     setPendingMove(false);
+    setPendingUndo(false);
     setLoading(true);
     setError(null);
+    setUndoMessage(null);
     try {
       const loadedGame = await getGame(id);
       if (request === requestNumber.current && session === sessionNumber.current) setGame(loadedGame);
@@ -84,8 +90,10 @@ export function GameSection() {
     const previousId = game.id;
     const { request, session } = startRequest();
     setPendingMove(false);
+    setPendingUndo(false);
     setLoading(true);
     setError(null);
+    setUndoMessage(null);
     try {
       const result = await resetGame(previousId);
       if (isCurrent(request, session, previousId)) {
@@ -100,12 +108,13 @@ export function GameSection() {
   };
 
   const move = async (row: number, column: number) => {
-    if (!game || game.status !== 'active' || pendingMove || game.currentPlayer === null) return;
+    if (!game || game.status !== 'active' || pendingMove || pendingUndo || game.currentPlayer === null) return;
     const player: Player = game.currentPlayer;
     const id = game.id;
     const { request, session } = startRequest();
     setPendingMove(true);
     setError(null);
+    setUndoMessage(null);
     try {
       const nextGame = await submitMove(id, {
         row,
@@ -118,6 +127,26 @@ export function GameSection() {
       if (isCurrent(request, session, id)) setError(errorMessage(cause));
     } finally {
       if (isCurrent(request, session, id)) setPendingMove(false);
+    }
+  };
+
+  const undo = async () => {
+    if (!game || !game.canUndo || pendingUndo || pendingMove || loading) return;
+    const id = game.id;
+    const { request, session } = startRequest();
+    setPendingUndo(true);
+    setError(null);
+    setUndoMessage(null);
+    try {
+      const nextGame = await undoGame(id);
+      if (isCurrent(request, session, id)) {
+        setGame(nextGame);
+        setUndoMessage('Move undone.');
+      }
+    } catch (cause) {
+      if (isCurrent(request, session, id)) setError(errorMessage(cause));
+    } finally {
+      if (isCurrent(request, session, id)) setPendingUndo(false);
     }
   };
 
@@ -147,7 +176,12 @@ export function GameSection() {
           <div className="game-meta">
             <p role="status">{statusMessage(game)}</p>
             <span>Game ID: {game.id}</span>
-            <button type="button" onClick={reset} disabled={loading}>Reset game</button>
+            <div className="game-actions">
+              <button type="button" onClick={reset} disabled={loading || pendingUndo}>Reset game</button>
+              <button type="button" onClick={() => void undo()} disabled={!game.canUndo || loading || pendingMove || pendingUndo}>
+                {pendingUndo ? 'Undoing…' : 'Undo'}
+              </button>
+            </div>
           </div>
           <div className="game-board" role="grid" aria-label="Tic tac toe board">
             {game.board.map((cell, index) => {
@@ -169,6 +203,22 @@ export function GameSection() {
             })}
           </div>
           {pendingMove && <AppStatus kind="loading" message="Submitting move…" />}
+          {pendingUndo && <AppStatus kind="loading" message="Undoing move…" />}
+          {undoMessage && <p className="app-status app-status--success" role="status" aria-live="polite">{undoMessage}</p>}
+          <section className="move-history" aria-labelledby="move-history-heading">
+            <h3 id="move-history-heading">Move history</h3>
+            {game.moveHistory.length === 0 ? (
+              <p>No moves yet.</p>
+            ) : (
+              <ol>
+                {game.moveHistory.map((move) => (
+                  <li key={`${move.moveNumber}-${move.player}-${move.row}-${move.column}`}>
+                    Move {move.moveNumber}: {move.player} — row {move.row}, column {move.column}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
         </div>
       )}
     </section>
