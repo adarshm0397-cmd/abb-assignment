@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { getScoreboard, resetScoreboard } from "../../api/scoreboard";
 import type { Scoreboard } from "../../api/types";
@@ -14,18 +14,42 @@ const useScoreboard = (refreshToken: number) => {
   const [loading, setLoading] = useState(true);
   const [pendingReset, setPendingReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestNumber = useRef(0);
+  const mounted = useRef(true);
+  const activeController = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    // React Strict Mode replays effects in development. Re-arm the guard when
+    // the effect is installed again after its development-only cleanup.
+    mounted.current = true;
+
+    return () => {
+      mounted.current = false;
+      activeController.current?.abort();
+      activeController.current = null;
+      requestNumber.current += 1;
+    };
+  }, []);
 
   const load = useCallback(async () => {
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
+    const request = ++requestNumber.current;
     setLoading(true);
     setError(null);
 
     try {
-      const confirmed = await getScoreboard();
-      setScoreboard(confirmed);
+      const confirmed = await getScoreboard(controller.signal);
+      if (mounted.current && request === requestNumber.current)
+        setScoreboard(confirmed);
     } catch (cause) {
-      setError(errorMessage(cause));
+      if (mounted.current && request === requestNumber.current)
+        setError(errorMessage(cause));
     } finally {
-      setLoading(false);
+      if (mounted.current && request === requestNumber.current)
+        setLoading(false);
+      if (request === requestNumber.current) activeController.current = null;
     }
   }, []);
 
@@ -36,16 +60,24 @@ const useScoreboard = (refreshToken: number) => {
   const reset = useCallback(async () => {
     if (!window.confirm("Reset the scoreboard? This cannot be undone.")) return;
 
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
+    const request = ++requestNumber.current;
     setPendingReset(true);
     setError(null);
 
     try {
-      const confirmed = await resetScoreboard();
-      setScoreboard(confirmed);
+      const confirmed = await resetScoreboard(controller.signal);
+      if (mounted.current && request === requestNumber.current)
+        setScoreboard(confirmed);
     } catch (cause) {
-      setError(errorMessage(cause));
+      if (mounted.current && request === requestNumber.current)
+        setError(errorMessage(cause));
     } finally {
-      setPendingReset(false);
+      if (mounted.current && request === requestNumber.current)
+        setPendingReset(false);
+      if (request === requestNumber.current) activeController.current = null;
     }
   }, []);
 
@@ -57,7 +89,8 @@ export function ScoreboardSection({
 }: {
   refreshToken?: number;
 }) {
-  const { scoreboard, loading, pendingReset, error, reset } = useScoreboard(refreshToken);
+  const { scoreboard, loading, pendingReset, error, reset } =
+    useScoreboard(refreshToken);
 
   return (
     <section className="feature-card" aria-labelledby="scoreboard-heading">

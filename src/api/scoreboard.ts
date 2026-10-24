@@ -1,7 +1,8 @@
-import { request } from './client';
-import type { Scoreboard } from './types';
+import { request } from "./client";
+import type { Scoreboard } from "./types";
 
-export const getScoreboard = () => request<Scoreboard>('/scoreboard');
+export const getScoreboard = (signal?: AbortSignal) =>
+  request<Scoreboard>("/scoreboard", { signal });
 
-export const resetScoreboard = () =>
-  request<Scoreboard>('/scoreboard/reset', { method: 'POST' });
+export const resetScoreboard = (signal?: AbortSignal) =>
+  request<Scoreboard>("/scoreboard/reset", { method: "POST", signal });

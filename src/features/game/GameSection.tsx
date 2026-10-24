@@ -43,7 +43,15 @@ export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void 
       <div className="game-controls">
         <label>
           Game mode
-          <select value={mode} onChange={(event) => setMode(event.target.value as Mode)} disabled={loading || pendingMove}>
+          <select
+            value={mode}
+            onChange={(event) => {
+              const nextMode = event.target.value as Mode;
+              setMode(nextMode);
+              void create(nextMode);
+            }}
+            disabled={loading || pendingMove}
+          >
             <option value="two-player">Two players</option>
             <option value="computer">Play computer</option>
           </select>
