@@ -1,3 +1,5 @@
+This project is primarily focused a frontend application. The backend provides the API, authoritative game logic, and SQLite persistence required for the frontend to function. You can also run the backend independently to explore its APIs and stored data.
+
 # ABB Tic Tac Toe
 
 ABB Tic Tac Toe is a full-stack Tic Tac Toe application. The frontend is built with React and TypeScript, the backend uses Express, and game data is stored in SQLite.
