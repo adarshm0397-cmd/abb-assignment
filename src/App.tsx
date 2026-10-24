@@ -9,8 +9,8 @@ function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <p className="eyebrow">Frontend foundation</p>
-        <h1>ABB Tic Tac Toe</h1>
+        <h1>ABB Assignment</h1>
+        <h1>Tic Tac Toe</h1>
         <p>Play games and track the shared scoreboard.</p>
       </header>
       <div className="feature-grid">
