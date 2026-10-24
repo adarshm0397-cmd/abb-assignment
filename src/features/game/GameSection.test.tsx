@@ -189,8 +189,35 @@ describe('GameSection', () => {
 
     expect(await screen.findByText('X wins!')).toBeInTheDocument();
     expect(screen.getAllByRole('gridcell').slice(0, 3).every((cell) => cell.className.includes('game-cell--winner'))).toBe(true);
+    expect(screen.getByRole('gridcell', { name: 'Row 1, column 1, X, winning cell' })).toBeInTheDocument();
     expect(screen.getByRole('gridcell', { name: 'Row 2, column 1' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  });
+
+  it('announces a draw without changing the board interaction model', async () => {
+    mockedCreateGame.mockResolvedValue(game({ status: 'draw', currentPlayer: null }));
+    render(<GameSection />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    await screen.findByRole('gridcell', { name: 'Row 1, column 1' });
+
+    expect(screen.getByText('It is a draw.')).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getAllByRole('gridcell')).toHaveLength(9);
+    expect(screen.getAllByRole('gridcell').every((cell) => cell.hasAttribute('disabled'))).toBe(true);
+  });
+
+  it('announces loading feedback while a move is pending', async () => {
+    const pending = deferred<GameResponse>();
+    mockedCreateGame.mockResolvedValue(game());
+    mockedSubmitMove.mockReturnValue(pending.promise);
+    render(<GameSection />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    await screen.findByRole('gridcell', { name: 'Row 1, column 1' });
+    await userEvent.click(screen.getByRole('gridcell', { name: 'Row 1, column 1' }));
+
+    expect(screen.getByText('Submitting move…')).toHaveAttribute('aria-live', 'polite');
+    pending.resolve(game({ board: ['X', null, null, null, null, null, null, null, null], currentPlayer: 'O' }));
   });
 
   it('keeps undo unavailable for a draw and clears history from a fresh reset state', async () => {

@@ -5,7 +5,12 @@ interface AppStatusProps {
 
 export function AppStatus({ kind, message }: AppStatusProps) {
   return (
-    <p className={`app-status app-status--${kind}`} role={kind === 'error' ? 'alert' : undefined}>
+    <p
+      aria-atomic="true"
+      aria-live={kind === 'error' ? 'assertive' : 'polite'}
+      className={`app-status app-status--${kind}`}
+      role={kind === 'error' ? 'alert' : 'status'}
+    >
       {message}
     </p>
   );

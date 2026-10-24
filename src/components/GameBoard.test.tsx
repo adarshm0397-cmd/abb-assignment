@@ -49,4 +49,14 @@ describe('GameBoard', () => {
     userEvent.click(cell);
     expect(onCellSelect).toHaveBeenCalledWith(0, 0);
   });
+
+  it('operates a focused cell with the keyboard', async () => {
+    const onCellSelect = jest.fn();
+    render(<GameBoard board={emptyBoard} onCellSelect={onCellSelect} />);
+
+    await userEvent.tab();
+    await userEvent.keyboard('{Enter}');
+
+    expect(onCellSelect).toHaveBeenCalledWith(0, 0);
+  });
 });
