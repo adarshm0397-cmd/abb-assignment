@@ -4,7 +4,7 @@ A full-stack Tic Tac Toe application built with React, TypeScript, Vite, Node.js
 
 ## Current status
 
-The project foundation is complete. The frontend currently renders a placeholder screen and the backend exposes a health-check endpoint. Game rules and persistence will be implemented in later phases.
+The backend includes a standalone game engine and SQLite persistence layer. The frontend currently renders a placeholder screen and the backend still exposes only its health-check endpoint.
 
 ## Requirements
 
@@ -34,7 +34,27 @@ npm run dev:backend
 
 The frontend runs on Vite's default development port. The backend runs on `http://localhost:3001` by default.
 
-The backend health check is available at `GET /api/health`.
+The backend health check is available at `GET /api/health`. The game API is documented at `GET /api/docs` (OpenAPI JSON is available at `GET /api/openapi.json`). Set `DATABASE_PATH` to choose the SQLite file and `CORS_ORIGIN` to a comma-separated list of allowed browser origins.
+
+## Local SQLite database
+
+The persistence layer is independent of HTTP handling. Create and open a database with `openGameDatabase`, for example:
+
+```ts
+const database = openGameDatabase('./data/tic-tac-toe.sqlite');
+const repository = new SqliteGameSessionRepository(database);
+const service = new GameService(repository);
+```
+
+The first open creates the `games` and `moves` tables and sets schema version 1. The schema uses SQLite foreign keys, check constraints, a unique position per game, and parameterized statements. `SqliteGameSessionRepository.save` updates the game row and replaces its move rows in one transaction.
+
+To reset a development database, stop the backend and remove the explicitly configured database file (or the local `data/` directory):
+
+```bash
+rm -f data/tic-tac-toe.sqlite
+```
+
+Database files, SQLite journals, and the `data/` directory are ignored by Git. Tests create isolated temporary database files and remove them after each test.
 
 ## Feature specifications
 
