@@ -1,6 +1,6 @@
 # Feature: SQLite persistence
 
-- Status: Proposed
+- Status: Implemented
 - Depends on: Project foundation
 - Planned branch: `feature/sqlite-persistence`
 
@@ -23,13 +23,21 @@ Persist game sessions, moves, and scoreboard data with relational integrity and 
 - Reset Game retains historical records.
 - Reset Scoreboard changes counters only.
 
+## Implementation notes
+
+- `server/src/persistence/database.ts` creates the schema and tracks schema version with SQLite `PRAGMA user_version`.
+- `server/src/persistence/game-repository.ts` maps rows to `GameSession` and validates board/history consistency before writes.
+- `server/src/game-service.ts` applies moves through the game engine, then persists the resulting state and appended move history together.
+- The current schema is version 1; future changes should add an explicit versioned migration before increasing `user_version`.
+- SQLite files are local-only and ignored by Git. Tests use temporary files, not a shared test database.
+
 ## Acceptance criteria
 
-- [ ] Schema can be created from a clean database.
-- [ ] Games and moves survive restart.
-- [ ] Invalid records are rejected by constraints.
-- [ ] Completion scoring is exactly once.
-- [ ] Multi-record updates roll back together on failure.
+- [x] Schema can be created from a clean database.
+- [x] Games and moves survive restart.
+- [x] Invalid records are rejected by constraints.
+- [ ] Completion scoring is exactly once (out of scope for this change).
+- [x] Multi-record updates roll back together on failure.
 
 ## Test plan
 
