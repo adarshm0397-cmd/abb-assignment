@@ -26,6 +26,17 @@ afterEach(() => {
 });
 
 describe("SQLite game persistence", () => {
+  const finish = (service: GameService, gameId: string, moves: Array<[number, number]>) => {
+    for (let index = 0; index < moves.length; index += 1) {
+      const result = service.makeMove(gameId, {
+        player: index % 2 === 0 ? "X" : "O",
+        row: moves[index][0],
+        column: moves[index][1],
+      });
+      if (!result.ok) throw new Error(`Expected move ${index + 1} to succeed.`);
+    }
+  };
+
   it("creates and retrieves an empty game session", () => {
     const { service } = createService();
     const created = service.createGame();
@@ -118,5 +129,42 @@ describe("SQLite game persistence", () => {
       repository.save({ ...created, state: result.state, moveHistory: [] }),
     ).toThrow("Move history does not match the board.");
     expect(repository.findById(created.id)).toEqual(created);
+  });
+
+  it("counts each result once and shares the persisted scoreboard across games", () => {
+    const { database, service } = createService();
+    const xGame = service.createGame();
+    finish(service, xGame.id, [[1, 1], [2, 1], [1, 2], [2, 2], [1, 3]]);
+    const completed = service.getGame(xGame.id)!;
+    const repository = new SqliteGameSessionRepository(database);
+    repository.save(completed);
+    expect(service.getScoreboard()).toEqual({ xWins: 1, oWins: 0, draws: 0 });
+
+    const oGame = service.createGame();
+    finish(service, oGame.id, [[1, 1], [1, 3], [2, 2], [2, 3], [3, 1], [3, 3]]);
+    expect(service.getScoreboard()).toEqual({ xWins: 1, oWins: 1, draws: 0 });
+
+    const drawGame = service.createGame();
+    finish(service, drawGame.id, [[1, 1], [1, 2], [1, 3], [2, 2], [2, 1], [2, 3], [3, 2], [3, 1], [3, 3]]);
+    expect(new GameService(repository).getScoreboard()).toEqual({ xWins: 1, oWins: 1, draws: 1 });
+  });
+
+  it("rolls back the completed game and scoreboard together when score persistence fails", () => {
+    const { database, service } = createService();
+    const game = service.createGame();
+    database.exec("CREATE TRIGGER fail_score BEFORE UPDATE OF x_wins ON scoreboard BEGIN SELECT RAISE(ABORT, 'forced score failure'); END;");
+    expect(() => finish(service, game.id, [[1, 1], [2, 1], [1, 2], [2, 2], [1, 3]])).toThrow("forced score failure");
+    expect(service.getGame(game.id)?.state.status).toBe("active");
+    expect(service.getScoreboard()).toEqual({ xWins: 0, oWins: 0, draws: 0 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM completion_events").get()).toEqual({ count: 0 });
+  });
+
+  it("keeps the scoreboard unchanged when resetting a game", () => {
+    const { service } = createService();
+    const game = service.createGame();
+    finish(service, game.id, [[1, 1], [2, 1], [1, 2], [2, 2], [1, 3]]);
+    const before = service.getScoreboard();
+    service.resetGame(game.id);
+    expect(service.getScoreboard()).toEqual(before);
   });
 });
