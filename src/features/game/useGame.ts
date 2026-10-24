@@ -18,7 +18,7 @@ interface UseGameOptions {
   onGameCompleted?: () => void;
 }
 
-export function useGame({ onGameCompleted }: UseGameOptions = {}) {
+export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
   const [mode, setMode] = useState<Mode>("two-player");
   const [gameId, setGameId] = useState("");
   const [game, setGame] = useState<GameResponse | null>(null);
@@ -255,4 +255,4 @@ export function useGame({ onGameCompleted }: UseGameOptions = {}) {
     undo,
     undoMessage,
   };
-}
+};

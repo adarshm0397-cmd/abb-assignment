@@ -14,7 +14,11 @@ const isWinningCell = (game: GameResponse, index: number) =>
     line.some(({ row, column }) => (row - 1) * 3 + column - 1 === index),
   );
 
-export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void }) {
+export const GameSection = ({
+  onGameCompleted,
+}: {
+  onGameCompleted?: () => void;
+}) => {
   const {
     create,
     error,
@@ -69,7 +73,13 @@ export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void 
       {game && (
         <div className="game-board-area">
           <div className="game-meta">
-            <p aria-atomic="true" aria-live="polite" id="game-status" role="status">
+            <p
+              aria-atomic="true"
+              aria-live="polite"
+              className={game.status === 'won' ? 'game-status game-status--winner' : 'game-status'}
+              id="game-status"
+              role="status"
+            >
               {statusMessage(game)}
             </p>
             {game.mode === 'computer' && <p className="game-mode-indicator">Playing against the computer</p>}
@@ -131,4 +141,4 @@ export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void 
       )}
     </section>
   );
-}
+};

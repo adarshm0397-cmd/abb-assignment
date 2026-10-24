@@ -104,6 +104,9 @@ select:focus-visible {
   margin: 0;
   font-weight: 700;
 }
+.game-status--winner {
+  color: #166534;
+}
 .game-meta span {
   overflow-wrap: anywhere;
   color: #475569;

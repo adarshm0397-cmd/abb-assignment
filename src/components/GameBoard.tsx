@@ -11,30 +11,28 @@ export interface GameBoardProps {
 
 const BOARD_SIZE = 3;
 
-export function GameBoard({
+export const GameBoard = ({
   board,
   disabled = false,
   isCellDisabled,
   onCellSelect,
-}: GameBoardProps) {
-  return (
-    <div aria-label="Tic tac toe board" className="game-board" role="group">
-      {Array.from({ length: BOARD_SIZE }, (_, row) =>
-        Array.from({ length: BOARD_SIZE }, (_, column) => {
-          const value = board[row]?.[column] ?? null;
+}: GameBoardProps) => (
+  <div aria-label="Tic tac toe board" className="game-board" role="group">
+    {Array.from({ length: BOARD_SIZE }, (_, row) =>
+      Array.from({ length: BOARD_SIZE }, (_, column) => {
+        const value = board[row]?.[column] ?? null;
 
-          return (
-            <Cell
-              column={column}
-              disabled={disabled || isCellDisabled?.(row, column) === true}
-              key={`${row}-${column}`}
-              onSelect={() => onCellSelect(row, column)}
-              row={row}
-              value={value}
-            />
-          );
-        }),
-      )}
-    </div>
-  );
-}
+        return (
+          <Cell
+            column={column}
+            disabled={disabled || isCellDisabled?.(row, column) === true}
+            key={`${row}-${column}`}
+            onSelect={() => onCellSelect(row, column)}
+            row={row}
+            value={value}
+          />
+        );
+      }),
+    )}
+  </div>
+);

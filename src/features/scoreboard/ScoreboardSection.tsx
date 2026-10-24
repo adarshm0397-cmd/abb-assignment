@@ -84,11 +84,11 @@ const useScoreboard = (refreshToken: number) => {
   return { scoreboard, loading, pendingReset, error, reset };
 };
 
-export function ScoreboardSection({
+export const ScoreboardSection = ({
   refreshToken = 0,
 }: {
   refreshToken?: number;
-}) {
+}) => {
   const { scoreboard, loading, pendingReset, error, reset } =
     useScoreboard(refreshToken);
 
@@ -124,4 +124,4 @@ export function ScoreboardSection({
       )}
     </section>
   );
-}
+};
