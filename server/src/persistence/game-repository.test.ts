@@ -162,6 +162,22 @@ describe("SQLite game persistence", () => {
     expect(database.prepare("SELECT COUNT(*) AS count FROM completion_events").get()).toEqual({ count: 0 });
   });
 
+  it("recovers after a failed transaction once the persistence fault is removed", () => {
+    const { database, service } = createService();
+    const game = service.createGame();
+    database.exec("CREATE TRIGGER fail_once BEFORE INSERT ON moves WHEN NEW.move_number = 1 BEGIN SELECT RAISE(ABORT, 'forced move failure'); END;");
+
+    expect(() => service.makeMove(game.id, { player: "X", row: 1, column: 1 })).toThrow("forced move failure");
+    expect(service.getGame(game.id)).toEqual(game);
+
+    database.exec("DROP TRIGGER fail_once");
+    const recovered = service.makeMove(game.id, { player: "X", row: 1, column: 1 });
+    expect(recovered.ok).toBe(true);
+    expect(service.getGame(game.id)?.moveHistory).toEqual([
+      { player: "X", row: 1, column: 1 },
+    ]);
+  });
+
   it("keeps the scoreboard unchanged when resetting a game", () => {
     const { service } = createService();
     const game = service.createGame();
