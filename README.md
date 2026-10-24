@@ -16,6 +16,7 @@ The backend is the source of truth for game rules and state. It validates moves,
 - Idempotent move requests, so retrying a request does not duplicate a move.
 - Exactly-once scoreboard updates when a game is completed.
 - Keyboard-accessible and responsive UI with loading and error states.
+- A single accessible page heading, with separate Game and Scoreboard sections.
 - Health and OpenAPI endpoints for API checks and documentation.
 
 ## How it works
@@ -46,6 +47,8 @@ SQLite transactions keep the game state, move history, idempotency records, and 
 
 - Node.js 20 or newer.
 - npm 10 or newer.
+
+The application supports Node.js 20 and newer. GitHub Actions currently runs the checks on Node.js 24 and Ubuntu 24.04.
 
 Install the exact dependency versions from the committed lockfile:
 
@@ -249,6 +252,8 @@ npm run build             # Frontend production build
 npm run build:backend     # Backend JavaScript build
 ```
 
+The application foundation test mocks the initial scoreboard request and waits for the asynchronous scoreboard state to render. This keeps the test focused on the app shell and prevents React `act(...)` warnings from background API updates.
+
 To run the compiled backend:
 
 ```bash
@@ -259,7 +264,7 @@ CORS_ORIGIN=https://your-netlify-site.netlify.app \
 npm run start:backend
 ```
 
-GitHub Actions runs the tests, linting, type checks, and both builds on pushes and pull requests targeting `main` or `master`. See [`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
+GitHub Actions runs the frontend tests, linting, type checks, and both builds on pushes and pull requests targeting `main` or `master`. The workflow uses `actions/checkout@v5`, `actions/setup-node@v5`, Node.js 24, and Ubuntu 24.04. The backend test suite is available locally through `npm run test:backend`. See [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) for the current CI workflow.
 
 ## Important design decisions
 
