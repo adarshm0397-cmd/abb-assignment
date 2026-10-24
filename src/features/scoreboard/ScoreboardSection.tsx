@@ -9,11 +9,7 @@ const errorMessage = (error: unknown) =>
     ? error.message
     : "Something went wrong. Please try again.";
 
-export function ScoreboardSection({
-  refreshToken = 0,
-}: {
-  refreshToken?: number;
-}) {
+const useScoreboard = (refreshToken: number) => {
   const [scoreboard, setScoreboard] = useState<Scoreboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingReset, setPendingReset] = useState(false);
@@ -22,6 +18,7 @@ export function ScoreboardSection({
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
       const confirmed = await getScoreboard();
       setScoreboard(confirmed);
@@ -36,10 +33,12 @@ export function ScoreboardSection({
     void load();
   }, [load, refreshToken]);
 
-  const reset = async () => {
+  const reset = useCallback(async () => {
     if (!window.confirm("Reset the scoreboard? This cannot be undone.")) return;
+
     setPendingReset(true);
     setError(null);
+
     try {
       const confirmed = await resetScoreboard();
       setScoreboard(confirmed);
@@ -48,7 +47,17 @@ export function ScoreboardSection({
     } finally {
       setPendingReset(false);
     }
-  };
+  }, []);
+
+  return { scoreboard, loading, pendingReset, error, reset };
+};
+
+export function ScoreboardSection({
+  refreshToken = 0,
+}: {
+  refreshToken?: number;
+}) {
+  const { scoreboard, loading, pendingReset, error, reset } = useScoreboard(refreshToken);
 
   return (
     <section className="feature-card" aria-labelledby="scoreboard-heading">
