@@ -162,7 +162,11 @@ export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void 
   };
 
   return (
-    <section className="feature-card" aria-labelledby="game-heading">
+    <section
+      aria-busy={loading || pendingMove || pendingUndo}
+      aria-labelledby="game-heading"
+      className="feature-card"
+    >
       <h2 id="game-heading">Game</h2>
       <div className="game-controls">
         <label>
@@ -185,7 +189,9 @@ export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void 
       {game && (
         <div className="game-board-area">
           <div className="game-meta">
-            <p role="status">{statusMessage(game)}</p>
+            <p aria-atomic="true" aria-live="polite" id="game-status" role="status">
+              {statusMessage(game)}
+            </p>
             {game.mode === 'computer' && <p className="game-mode-indicator">Playing against the computer</p>}
             <span>Game ID: {game.id}</span>
             <div className="game-actions">
@@ -195,7 +201,13 @@ export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void 
               </button>
             </div>
           </div>
-          <div className="game-board" role="grid" aria-label="Tic tac toe board">
+          <div
+            aria-colcount={3}
+            aria-label="Tic tac toe board"
+            aria-rowcount={3}
+            className="game-board"
+            role="grid"
+          >
             {game.board.map((cell, index) => {
               const row = Math.floor(index / 3) + 1;
               const column = (index % 3) + 1;
@@ -204,7 +216,9 @@ export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void 
                   key={`${row}-${column}`}
                   type="button"
                   role="gridcell"
-                  aria-label={`Row ${row}, column ${column}${cell ? `, ${cell}` : ''}`}
+                  aria-colindex={column}
+                  aria-label={`Row ${row}, column ${column}${cell ? `, ${cell}` : ''}${isWinningCell(game, index) ? ', winning cell' : ''}`}
+                  aria-rowindex={row}
                   className={isWinningCell(game, index) ? 'game-cell game-cell--winner' : 'game-cell'}
                   onClick={() => void move(row, column)}
                   disabled={pendingMove || game.status !== 'active' || cell !== null || (game.mode === 'computer' && game.currentPlayer !== 'X')}
