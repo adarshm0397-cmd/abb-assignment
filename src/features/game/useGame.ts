@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ApiError } from "../../api/client";
 import {
   createGame,
@@ -8,6 +8,17 @@ import {
   undoGame,
 } from "../../api/games";
 import type { GameResponse, Mode, Player } from "../../api/types";
+import {
+  setError as setGameError,
+  setGame,
+  setGameId,
+  setLoading,
+  setMode,
+  setPendingMove,
+  setPendingUndo,
+  setUndoMessage,
+} from "../../store/gameSlice";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
 
 const errorMessage = (error: unknown) =>
   error instanceof ApiError
@@ -19,18 +30,30 @@ interface UseGameOptions {
 }
 
 export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
-  const [mode, setMode] = useState<Mode>("two-player");
-  const [gameId, setGameId] = useState("");
-  const [game, setGame] = useState<GameResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [pendingMove, setPendingMove] = useState(false);
-  const [pendingUndo, setPendingUndo] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [undoMessage, setUndoMessage] = useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  const {
+    mode,
+    gameId,
+    game,
+    loading,
+    pendingMove,
+    pendingUndo,
+    error,
+    undoMessage,
+  } = useAppSelector((state) => state.game);
   const requestNumber = useRef(0);
   const sessionNumber = useRef(0);
   const mounted = useRef(true);
   const activeController = useRef<AbortController | null>(null);
+
+  const updateGameId = (value: string) => dispatch(setGameId(value));
+  const updateMode = (value: Mode) => dispatch(setMode(value));
+  const updateGame = (value: GameResponse | null) => dispatch(setGame(value));
+  const updateLoading = (value: boolean) => dispatch(setLoading(value));
+  const updatePendingMove = (value: boolean) => dispatch(setPendingMove(value));
+  const updatePendingUndo = (value: boolean) => dispatch(setPendingUndo(value));
+  const updateError = (value: string | null) => dispatch(setGameError(value));
+  const updateUndoMessage = (value: string | null) => dispatch(setUndoMessage(value));
 
   useEffect(() => {
     mounted.current = true;
@@ -70,11 +93,11 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
   const create = async (selectedMode: Mode = mode) => {
     const session = ++sessionNumber.current;
     const { request, signal } = startRequest();
-    setPendingMove(false);
-    setPendingUndo(false);
-    setLoading(true);
-    setError(null);
-    setUndoMessage(null);
+    updatePendingMove(false);
+    updatePendingUndo(false);
+    updateLoading(true);
+    updateError(null);
+    updateUndoMessage(null);
 
     try {
       const nextGame = await createGame({ mode: selectedMode }, signal);
@@ -82,8 +105,8 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
         request === requestNumber.current &&
         session === sessionNumber.current
       ) {
-        setGame(nextGame);
-        setGameId(nextGame.id);
+        updateGame(nextGame);
+        updateGameId(nextGame.id);
         if (nextGame.status === "won" || nextGame.status === "draw")
           onGameCompleted?.();
       }
@@ -92,14 +115,14 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
         request === requestNumber.current &&
         session === sessionNumber.current
       ) {
-        setError(errorMessage(cause));
+        updateError(errorMessage(cause));
       }
     } finally {
       if (
         request === requestNumber.current &&
         session === sessionNumber.current
       ) {
-        setLoading(false);
+        updateLoading(false);
       }
       finishRequest(request);
     }
@@ -108,17 +131,17 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
   const load = async () => {
     const id = gameId.trim();
     if (!id) {
-      setError("Enter a game ID to load.");
+      updateError("Enter a game ID to load.");
       return;
     }
 
     const session = ++sessionNumber.current;
     const { request, signal } = startRequest();
-    setPendingMove(false);
-    setPendingUndo(false);
-    setLoading(true);
-    setError(null);
-    setUndoMessage(null);
+    updatePendingMove(false);
+    updatePendingUndo(false);
+    updateLoading(true);
+    updateError(null);
+    updateUndoMessage(null);
 
     try {
       const loadedGame = await getGame(id, signal);
@@ -126,21 +149,21 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
         request === requestNumber.current &&
         session === sessionNumber.current
       ) {
-        setGame(loadedGame);
+        updateGame(loadedGame);
       }
     } catch (cause) {
       if (
         request === requestNumber.current &&
         session === sessionNumber.current
       ) {
-        setError(errorMessage(cause));
+        updateError(errorMessage(cause));
       }
     } finally {
       if (
         request === requestNumber.current &&
         session === sessionNumber.current
       ) {
-        setLoading(false);
+        updateLoading(false);
       }
       finishRequest(request);
     }
@@ -151,23 +174,23 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
 
     const previousId = game.id;
     const { request, session, signal } = startRequest();
-    setPendingMove(false);
-    setPendingUndo(false);
-    setLoading(true);
-    setError(null);
-    setUndoMessage(null);
+    updatePendingMove(false);
+    updatePendingUndo(false);
+    updateLoading(true);
+    updateError(null);
+    updateUndoMessage(null);
 
     try {
       const result = await resetGame(previousId, signal);
       if (isCurrent(request, session, previousId)) {
-        setGame(result.game);
-        setGameId(result.game.id);
+        updateGame(result.game);
+        updateGameId(result.game.id);
       }
     } catch (cause) {
       if (isCurrent(request, session, previousId))
-        setError(errorMessage(cause));
+        updateError(errorMessage(cause));
     } finally {
-      if (isCurrent(request, session, previousId)) setLoading(false);
+      if (isCurrent(request, session, previousId)) updateLoading(false);
       finishRequest(request);
     }
   };
@@ -187,9 +210,9 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
     const player: Player = game.currentPlayer;
     const id = game.id;
     const { request, session, signal } = startRequest();
-    setPendingMove(true);
-    setError(null);
-    setUndoMessage(null);
+    updatePendingMove(true);
+    updateError(null);
+    updateUndoMessage(null);
 
     try {
       const nextGame = await submitMove(
@@ -203,14 +226,14 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
         signal,
       );
       if (isCurrent(request, session, id)) {
-        setGame(nextGame);
+        updateGame(nextGame);
         if (nextGame.status === "won" || nextGame.status === "draw")
           onGameCompleted?.();
       }
     } catch (cause) {
-      if (isCurrent(request, session, id)) setError(errorMessage(cause));
+      if (isCurrent(request, session, id)) updateError(errorMessage(cause));
     } finally {
-      if (isCurrent(request, session, id)) setPendingMove(false);
+      if (isCurrent(request, session, id)) updatePendingMove(false);
       finishRequest(request);
     }
   };
@@ -220,20 +243,20 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
 
     const id = game.id;
     const { request, session, signal } = startRequest();
-    setPendingUndo(true);
-    setError(null);
-    setUndoMessage(null);
+    updatePendingUndo(true);
+    updateError(null);
+    updateUndoMessage(null);
 
     try {
       const nextGame = await undoGame(id, signal);
       if (isCurrent(request, session, id)) {
-        setGame(nextGame);
-        setUndoMessage("Move undone.");
+        updateGame(nextGame);
+        updateUndoMessage("Move undone.");
       }
     } catch (cause) {
-      if (isCurrent(request, session, id)) setError(errorMessage(cause));
+      if (isCurrent(request, session, id)) updateError(errorMessage(cause));
     } finally {
-      if (isCurrent(request, session, id)) setPendingUndo(false);
+      if (isCurrent(request, session, id)) updatePendingUndo(false);
       finishRequest(request);
     }
   };
@@ -250,8 +273,8 @@ export const useGame = ({ onGameCompleted }: UseGameOptions = {}) => {
     pendingMove,
     pendingUndo,
     reset,
-    setGameId,
-    setMode,
+    setGameId: updateGameId,
+    setMode: updateMode,
     undo,
     undoMessage,
   };

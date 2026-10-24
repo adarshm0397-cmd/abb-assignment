@@ -1,8 +1,14 @@
 import { render, screen } from "@testing-library/react";
+import { Provider } from "react-redux";
 import App from "./App";
+import { createAppStore } from "./store/store";
 
 test("renders the application foundation", () => {
-  render(<App />);
+  render(
+    <Provider store={createAppStore()}>
+      <App />
+    </Provider>,
+  );
   expect(
     screen.getByRole("heading", { name: "ABB Tic Tac Toe" }),
   ).toBeInTheDocument();

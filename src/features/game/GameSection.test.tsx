@@ -1,4 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { Provider } from "react-redux";
 import userEvent from "@testing-library/user-event";
 import {
   createGame,
@@ -9,6 +11,10 @@ import {
 } from "../../api/games";
 import type { GameResponse } from "../../api/types";
 import { GameSection } from "./GameSection";
+import { createAppStore } from "../../store/store";
+
+const render = (ui: ReactElement) =>
+  rtlRender(<Provider store={createAppStore()}>{ui}</Provider>);
 
 jest.mock("../../api/games");
 

@@ -1,7 +1,21 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render as rtlRender, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { Provider } from "react-redux";
 import userEvent from "@testing-library/user-event";
 import { getScoreboard, resetScoreboard } from "../../api/scoreboard";
 import { ScoreboardSection } from "./ScoreboardSection";
+import { createAppStore } from "../../store/store";
+
+const render = (ui: ReactElement) => {
+  const testStore = createAppStore();
+  const view = rtlRender(<Provider store={testStore}>{ui}</Provider>);
+
+  return {
+    ...view,
+    rerender: (nextUi: ReactElement) =>
+      view.rerender(<Provider store={testStore}>{nextUi}</Provider>),
+  };
+};
 
 jest.mock("../../api/scoreboard");
 
