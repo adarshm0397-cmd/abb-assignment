@@ -1,19 +1,40 @@
-import { request } from './client';
-import type { CreateGameRequest, GameResponse, MoveRequest, ResetGameResponse } from './types';
+import { request } from "./client";
+import type {
+  CreateGameRequest,
+  GameResponse,
+  MoveRequest,
+  ResetGameResponse,
+} from "./types";
 
-export const createGame = (body: CreateGameRequest) =>
-  request<GameResponse>('/games', { method: 'POST', body: JSON.stringify(body) });
-
-export const getGame = (gameId: string) => request<GameResponse>(`/games/${encodeURIComponent(gameId)}`);
-
-export const submitMove = (gameId: string, body: MoveRequest) =>
-  request<GameResponse>(`/games/${encodeURIComponent(gameId)}/moves`, {
-    method: 'POST',
+export const createGame = (body: CreateGameRequest, signal?: AbortSignal) =>
+  request<GameResponse>("/games", {
+    method: "POST",
     body: JSON.stringify(body),
+    signal,
   });
 
-export const undoGame = (gameId: string) =>
-  request<GameResponse>(`/games/${encodeURIComponent(gameId)}/undo`, { method: 'POST' });
+export const getGame = (gameId: string, signal?: AbortSignal) =>
+  request<GameResponse>(`/games/${encodeURIComponent(gameId)}`, { signal });
 
-export const resetGame = (gameId: string) =>
-  request<ResetGameResponse>(`/games/${encodeURIComponent(gameId)}/reset`, { method: 'POST' });
+export const submitMove = (
+  gameId: string,
+  body: MoveRequest,
+  signal?: AbortSignal,
+) =>
+  request<GameResponse>(`/games/${encodeURIComponent(gameId)}/moves`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal,
+  });
+
+export const undoGame = (gameId: string, signal?: AbortSignal) =>
+  request<GameResponse>(`/games/${encodeURIComponent(gameId)}/undo`, {
+    method: "POST",
+    signal,
+  });
+
+export const resetGame = (gameId: string, signal?: AbortSignal) =>
+  request<ResetGameResponse>(`/games/${encodeURIComponent(gameId)}/reset`, {
+    method: "POST",
+    signal,
+  });

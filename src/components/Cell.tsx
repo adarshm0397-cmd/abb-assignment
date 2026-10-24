@@ -8,7 +8,13 @@ export interface CellProps {
   value: CellValue;
 }
 
-export function Cell({ column, disabled = false, onSelect, row, value }: CellProps) {
+export const Cell = ({
+  column,
+  disabled = false,
+  onSelect,
+  row,
+  value,
+}: CellProps) => {
   const valueLabel = value ?? 'empty';
 
   return (
@@ -22,4 +28,4 @@ export function Cell({ column, disabled = false, onSelect, row, value }: CellPro
       <span aria-hidden="true">{value}</span>
     </button>
   );
-}
+};

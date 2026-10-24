@@ -1,6 +1,6 @@
-export type Player = 'X' | 'O';
-export type Mode = 'two-player' | 'computer';
-export type GameStatus = 'active' | 'won' | 'draw' | 'reset';
+export type Player = "X" | "O";
+export type Mode = "two-player" | "computer";
+export type GameStatus = "active" | "won" | "draw" | "reset";
 
 export interface Coordinate {
   row: number;
@@ -24,7 +24,17 @@ export interface MoveRequest extends Coordinate {
 export interface GameResponse {
   id: string;
   mode: Mode;
-  board: [Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null, Player | null];
+  board: [
+    Player | null,
+    Player | null,
+    Player | null,
+    Player | null,
+    Player | null,
+    Player | null,
+    Player | null,
+    Player | null,
+    Player | null,
+  ];
   currentPlayer: Player | null;
   status: GameStatus;
   winner: Player | null;
@@ -44,18 +54,18 @@ export interface Scoreboard {
 }
 
 export type ApiErrorCode =
-  | 'INVALID_REQUEST'
-  | 'INVALID_CONTENT_TYPE'
-  | 'INVALID_MODE'
-  | 'INVALID_COORDINATES'
-  | 'INVALID_PLAYER'
-  | 'WRONG_TURN'
-  | 'CELL_OCCUPIED'
-  | 'GAME_COMPLETED'
-  | 'GAME_NOT_FOUND'
-  | 'UNDO_NOT_ALLOWED'
-  | 'DUPLICATE_REQUEST'
-  | 'INTERNAL_ERROR';
+  | "INVALID_REQUEST"
+  | "INVALID_CONTENT_TYPE"
+  | "INVALID_MODE"
+  | "INVALID_COORDINATES"
+  | "INVALID_PLAYER"
+  | "WRONG_TURN"
+  | "CELL_OCCUPIED"
+  | "GAME_COMPLETED"
+  | "GAME_NOT_FOUND"
+  | "UNDO_NOT_ALLOWED"
+  | "DUPLICATE_REQUEST"
+  | "INTERNAL_ERROR";
 
 export interface FieldError {
   field: string;
