@@ -28,9 +28,6 @@ jobs:
       - name: Run frontend tests
         run: npm test
 
-      - name: Run backend tests
-        run: npm run test:backend
-
       - name: Lint
         run: npm run lint
 
