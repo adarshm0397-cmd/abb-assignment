@@ -1,3 +1,5 @@
+Prompts: https://docs.google.com/document/d/1lJyeJRzFq2-4XdODW_5iIG9r-wHNkxlGDjKO-3ajLg4/edit?usp=sharing
+
 This project is primarily focused a frontend application. The backend provides the API, authoritative game logic, and SQLite persistence required for the frontend to function. You can also run the backend independently to explore its APIs and stored data.
 
 # ABB Tic Tac Toe
