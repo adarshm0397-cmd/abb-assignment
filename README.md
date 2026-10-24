@@ -4,6 +4,17 @@ ABB Tic Tac Toe is a full-stack Tic Tac Toe application. The frontend is built w
 
 The backend is the source of truth for game rules and state. It validates moves, controls turns, applies computer moves, handles undo and reset, and updates the scoreboard. The browser displays the state returned by the server instead of maintaining a second set of game rules.
 
+## Contents
+
+- [Set up and run locally](#set-up-and-run-locally)
+- [What the application supports](#what-the-application-supports)
+- [How it works](#how-it-works)
+- [Configuration](#configuration)
+- [API](#api)
+- [Database and persistence](#database-and-persistence)
+- [Deploy the frontend](#deploy-the-frontend)
+- [Build, test, and quality checks](#build-test-and-quality-checks)
+
 ## What the application supports
 
 - Two-player games.
@@ -43,42 +54,54 @@ The main backend responsibilities are:
 
 SQLite transactions keep the game state, move history, idempotency records, and scoreboard updates consistent when a request succeeds or fails.
 
-## Requirements
+## Set up and run locally
+
+Follow these steps to install the project and run the frontend and backend on your machine.
+
+### 1. Check the prerequisites
 
 - Node.js 20 or newer.
 - npm 10 or newer.
 
 The application supports Node.js 20 and newer. GitHub Actions currently runs the checks on Node.js 24 and Ubuntu 24.04.
 
-Install the exact dependency versions from the committed lockfile:
+### 2. Install dependencies
+
+From the project root, install the exact dependency versions recorded in the lockfile:
 
 ```bash
 npm ci
 ```
 
-Do not commit `node_modules`, build output, environment files, or local SQLite files.
+### 3. Start the application
 
-## Run locally
-
-### Start the frontend and backend together
+The simplest option starts the frontend and backend together:
 
 ```bash
 npm run dev
 ```
 
-The frontend normally runs at <http://localhost:5173> and the backend at <http://localhost:3001>.
+The frontend normally runs at <http://localhost:5173> and the backend runs at <http://localhost:3001>.
 
-### Start each process separately
+### Start each service separately
+
+Use separate terminals when you need to run or debug the services independently:
 
 ```bash
-# Terminal 1: Vite frontend
+# Terminal 1: start the Vite frontend
 npm run dev:frontend
 
-# Terminal 2: Express backend
+# Terminal 2: start the Express backend
 npm run dev:backend
 ```
 
-During development, Vite proxies `/api` requests to `http://localhost:3001`. The proxy target can be changed with `VITE_API_PROXY_TARGET`.
+During development, Vite proxies `/api` requests to `http://localhost:3001`. To use a different backend URL, set `VITE_API_PROXY_TARGET` before starting the frontend.
+
+### Stop the application
+
+Press `Ctrl+C` in each terminal running a development process.
+
+Do not commit `node_modules`, build output, environment files, or local SQLite files.
 
 ## Configuration
 
