@@ -13,6 +13,8 @@ These documents are the working specifications for ABB Tic Tac Toe. Each feature
 
 ## Feature index
 
+The shared API contract is defined in [api-contract.md](./api-contract.md), with machine-readable response schemas in [api-contract.schema.json](./api-contract.schema.json). Backend implementation must wait for approval of that contract.
+
 | Feature | Specification | Planned PR |
 |---|---|---|
 | Project foundation | [foundation.md](./features/foundation.md) | PR 1 |

@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abb-tic-tac-toe.local/docs/api-contract.schema.json",
+  "title": "ABB Tic Tac Toe API contract schemas",
+  "type": "object",
+  "$defs": {
+    "Player": { "type": "string", "enum": ["X", "O"] },
+    "Mode": { "type": "string", "enum": ["two-player", "computer"] },
+    "Status": { "type": "string", "enum": ["active", "won", "draw", "reset"] },
+    "CreateGameRequest": {
+      "description": "The request body is required, must be a JSON object, and must contain only the mode field.",
+      "type": "object",
+      "properties": {
+        "mode": { "$ref": "#/$defs/Mode" }
+      },
+      "required": ["mode"],
+      "additionalProperties": false
+    },
+    "Coordinate": {
+      "type": "object",
+      "properties": {
+        "row": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "column": { "type": "integer", "minimum": 1, "maximum": 3 }
+      },
+      "required": ["row", "column"],
+      "additionalProperties": false
+    },
+    "Move": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "moveNumber": { "type": "integer", "minimum": 1 },
+            "player": { "$ref": "#/$defs/Player" }
+          },
+          "required": ["moveNumber", "player"]
+        },
+        { "$ref": "#/$defs/Coordinate" }
+      ],
+      "additionalProperties": false
+    },
+    "MoveRequest": {
+      "description": "A move request is idempotent by requestId. Repeating the same requestId with identical request data replays the original result; reusing it with different request data is rejected.",
+      "type": "object",
+      "properties": {
+        "player": { "$ref": "#/$defs/Player" },
+        "row": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "column": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "requestId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["player", "row", "column", "requestId"],
+      "additionalProperties": false
+    },
+    "GameResponse": {
+      "description": "The complete state of one game. A reset game remains historical: its board and moveHistory are retained and its status is reset.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "mode": { "$ref": "#/$defs/Mode" },
+        "board": {
+          "type": "array",
+          "prefixItems": [
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] },
+            { "type": ["string", "null"], "enum": ["X", "O", null] }
+          ],
+          "items": false
+        },
+        "currentPlayer": { "anyOf": [{ "$ref": "#/$defs/Player" }, { "type": "null" }] },
+        "status": {
+          "$ref": "#/$defs/Status",
+          "description": "A reset status marks an old game retained by reset; its board and moveHistory are not cleared. The newly created game is active and has a new id."
+        },
+        "winner": { "anyOf": [{ "$ref": "#/$defs/Player" }, { "type": "null" }] },
+        "winningCells": { "type": "array", "items": { "$ref": "#/$defs/Coordinate" }, "maxItems": 3 },
+        "moveHistory": { "type": "array", "items": { "$ref": "#/$defs/Move" } },
+        "canUndo": { "type": "boolean" }
+      },
+      "required": ["id", "mode", "board", "currentPlayer", "status", "winner", "winningCells", "moveHistory", "canUndo"],
+      "additionalProperties": false
+    },
+    "ResetGameResponse": {
+      "description": "The result of resetting a game. The old game remains persisted with status reset, its original mode, board, and moveHistory; game is a new session with a new id and the same mode.",
+      "type": "object",
+      "properties": {
+        "game": { "$ref": "#/$defs/GameResponse" }
+      },
+      "required": ["game"],
+      "additionalProperties": false
+    },
+    "Scoreboard": {
+      "description": "The current scoreboard period. Each completed game contributes exactly once. Completion scoring and scoreboard reset are serialized atomically, so a game completing concurrently with a reset is applied to exactly one well-defined scoreboard period and is never double-counted or silently lost.",
+      "type": "object",
+      "properties": {
+        "xWins": { "type": "integer", "minimum": 0 },
+        "oWins": { "type": "integer", "minimum": 0 },
+        "draws": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["xWins", "oWins", "draws"],
+      "additionalProperties": false
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "INVALID_REQUEST",
+                "INVALID_CONTENT_TYPE",
+                "INVALID_MODE",
+                "INVALID_COORDINATES",
+                "INVALID_PLAYER",
+                "WRONG_TURN",
+                "CELL_OCCUPIED",
+                "GAME_COMPLETED",
+                "GAME_NOT_FOUND",
+                "UNDO_NOT_ALLOWED",
+                "DUPLICATE_REQUEST",
+                "INTERNAL_ERROR"
+              ]
+            },
+            "message": { "type": "string", "minLength": 1 },
+            "details": {
+              "type": "object",
+              "properties": {
+                "fields": {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/FieldError" }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": ["code", "message"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["error"],
+      "additionalProperties": false
+    },
+    "FieldError": {
+      "type": "object",
+      "properties": {
+        "field": { "type": "string", "minLength": 1 },
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "required": ["field", "code", "message"],
+      "additionalProperties": false
+    }
+  }
+}
