@@ -6,12 +6,13 @@ import {
   type MoveError,
   type Player,
 } from "./game-engine.js";
-import type {
-  GameMode,
-  GameSession,
-  GameSessionRepository,
-  RequestRecord,
-  Scoreboard,
+import {
+  RepositoryConflictError,
+  type GameMode,
+  type GameSession,
+  type GameSessionRepository,
+  type RequestRecord,
+  type Scoreboard,
 } from "./persistence/game-repository.js";
 import { chooseComputerMove } from "./computer-strategy.js";
 
@@ -20,6 +21,7 @@ export type ServiceErrorCode =
   | "GAME_NOT_FOUND"
   | "UNDO_NOT_ALLOWED"
   | "DUPLICATE_REQUEST"
+  | "CONFLICTING_STATE"
   | "INTERNAL_ERROR";
 export type ServiceError = {
   readonly code: ServiceErrorCode;
@@ -51,7 +53,13 @@ export class GameService {
     const session = this.repository.findById(id);
     if (!session)
       return { code: "GAME_NOT_FOUND", message: `Game '${id}' was not found.` };
-    return this.repository.reset(session);
+    try {
+      return this.repository.reset(session);
+    } catch (error) {
+      if (error instanceof RepositoryConflictError)
+        return { code: "CONFLICTING_STATE", message: error.message };
+      throw error;
+    }
   }
 
   public undo(id: string): GameSession | ServiceError {
@@ -76,11 +84,17 @@ export class GameService {
       0,
       Math.max(0, session.moveHistory.length - count),
     );
-    return this.repository.save({
-      ...session,
-      state: replay(history),
-      moveHistory: history,
-    });
+    try {
+      return this.repository.save({
+        ...session,
+        state: replay(history),
+        moveHistory: history,
+      });
+    } catch (error) {
+      if (error instanceof RepositoryConflictError)
+        return { code: "CONFLICTING_STATE", message: error.message };
+      throw error;
+    }
   }
 
   public makeMove(
@@ -152,10 +166,30 @@ export class GameService {
           session: next,
         }
       : undefined;
-    const saved = request
-      ? this.repository.saveWithRequest(next, request)
-      : this.repository.save(next);
-    return { ok: true, session: saved };
+    try {
+      const saved = request
+        ? this.repository.saveWithRequest(next, request)
+        : this.repository.save(next);
+      return { ok: true, session: saved };
+    } catch (error) {
+      if (error instanceof RepositoryConflictError) {
+        const completedRequest = requestId
+          ? this.repository.findRequest(id, requestId)
+          : null;
+        if (
+          completedRequest &&
+          completedRequest.player === move.player &&
+          completedRequest.row === move.row &&
+          completedRequest.column === move.column
+        )
+          return { ok: true, session: completedRequest.session };
+        return {
+          ok: false,
+          error: { code: "CONFLICTING_STATE", message: error.message },
+        };
+      }
+      throw error;
+    }
   }
 }
 
