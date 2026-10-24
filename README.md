@@ -36,6 +36,10 @@ The frontend runs on Vite's default development port. The backend runs on `http:
 
 The backend health check is available at `GET /api/health`.
 
+## Feature specifications
+
+The implementation is specification-driven. The feature index, reusable template, dependencies, acceptance criteria, API contracts, persistence rules, and test plans are maintained in [docs/README.md](./docs/README.md).
+
 ## Quality checks
 
 ```bash
