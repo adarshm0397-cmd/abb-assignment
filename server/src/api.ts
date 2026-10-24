@@ -28,6 +28,7 @@ const statusFor = (error: ServiceError) =>
           "GAME_COMPLETED",
           "UNDO_NOT_ALLOWED",
           "DUPLICATE_REQUEST",
+          "CONFLICTING_STATE",
         ].includes(error.code)
       ? 409
       : error.code === "INTERNAL_ERROR"

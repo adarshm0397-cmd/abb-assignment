@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-export const DATABASE_SCHEMA_VERSION = 2;
+export const DATABASE_SCHEMA_VERSION = 3;
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS games (
@@ -15,6 +15,7 @@ const SCHEMA = `
     winning_cells TEXT NOT NULL CHECK (json_valid(winning_cells) AND json_type(winning_cells) = 'array' AND json_array_length(winning_cells) <= 3),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0),
     CHECK ((status = 'won' AND winner IS NOT NULL) OR (status != 'won' AND winner IS NULL)),
     CHECK ((status = 'active' AND current_player IS NOT NULL) OR (status != 'active' AND current_player IS NULL))
   );
@@ -71,14 +72,22 @@ export const openGameDatabase = (filename: string): Database.Database => {
       `Database schema version ${version} is newer than supported version ${DATABASE_SCHEMA_VERSION}.`,
     );
   }
-  if (version !== 0 && version !== DATABASE_SCHEMA_VERSION) {
+  if (version !== 0 && version !== 2 && version !== DATABASE_SCHEMA_VERSION) {
     database.close();
     throw new Error(
       `Database schema version ${version} requires a development database reset.`,
     );
   }
-  if (version < DATABASE_SCHEMA_VERSION)
+  if (version === 2) {
+    database.transaction(() => {
+      database.exec(
+        "ALTER TABLE games ADD COLUMN version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0)",
+      );
+      database.pragma(`user_version = ${DATABASE_SCHEMA_VERSION}`);
+    })();
+  } else if (version < DATABASE_SCHEMA_VERSION) {
     database.pragma(`user_version = ${DATABASE_SCHEMA_VERSION}`);
+  }
 
   return database;
 };

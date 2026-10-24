@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { initializeGame, makeMove } from "../game-engine.js";
 import { GameService } from "../game-service.js";
 import { openGameDatabase } from "./database.js";
-import { SqliteGameSessionRepository } from "./game-repository.js";
+import {
+  RepositoryConflictError,
+  SqliteGameSessionRepository,
+} from "./game-repository.js";
 import type Database from "better-sqlite3";
 
 const resources: Array<{ database: Database.Database; directory: string }> = [];
@@ -166,5 +169,35 @@ describe("SQLite game persistence", () => {
     const before = service.getScoreboard();
     service.resetGame(game.id);
     expect(service.getScoreboard()).toEqual(before);
+  });
+
+  it("rejects a stale move instead of overwriting a newer game state", () => {
+    const { repository, service } = createService();
+    const created = service.createGame();
+    const stale = repository.findById(created.id)!;
+
+    expect(service.makeMove(created.id, { player: "X", row: 1, column: 1 }).ok).toBe(true);
+    const staleMove = makeMove(initializeGame(), { player: "X", row: 1, column: 2 });
+    if (!staleMove.ok) throw new Error("Expected valid move.");
+
+    expect(() => repository.save({
+      ...stale,
+      state: staleMove.state,
+      moveHistory: [{ player: "X", row: 1, column: 2 }],
+    })).toThrow(RepositoryConflictError);
+    expect(repository.findById(created.id)?.moveHistory).toEqual([
+      { player: "X", row: 1, column: 1 },
+    ]);
+  });
+
+  it("rejects a reset based on an old session snapshot", () => {
+    const { repository, service } = createService();
+    const created = service.createGame();
+    const stale = repository.findById(created.id)!;
+
+    const reset = service.resetGame(created.id);
+    expect("code" in reset).toBe(false);
+    expect(() => repository.reset(stale)).toThrow(RepositoryConflictError);
+    expect(repository.findById(created.id)?.state.status).toBe("reset");
   });
 });

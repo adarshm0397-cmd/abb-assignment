@@ -17,6 +17,7 @@ export type GameSession = {
   readonly moveHistory: readonly Move[];
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly version: number;
 };
 export type Scoreboard = {
   readonly xWins: number;
@@ -57,6 +58,7 @@ type GameRow = {
   winning_cells: string;
   created_at: string;
   updated_at: string;
+  version: number;
 };
 type MoveRow = {
   move_number: number;
@@ -156,7 +158,15 @@ const sessionFromRows = (game: GameRow, moves: MoveRow[]): GameSession => ({
   })),
   createdAt: game.created_at,
   updatedAt: game.updated_at,
+  version: game.version,
 });
+
+export class RepositoryConflictError extends Error {
+  public constructor(message = "The game changed before this operation completed.") {
+    super(message);
+    this.name = "RepositoryConflictError";
+  }
+}
 
 export class SqliteGameSessionRepository implements GameSessionRepository {
   public constructor(private readonly database: Database.Database) {}
@@ -173,6 +183,7 @@ export class SqliteGameSessionRepository implements GameSessionRepository {
       moveHistory,
       createdAt: now,
       updatedAt: now,
+      version: 0,
     };
     validateSession(session);
     this.database.transaction(() => {
@@ -212,10 +223,11 @@ export class SqliteGameSessionRepository implements GameSessionRepository {
   public save(session: GameSession): GameSession {
     validateSession(session);
     const updatedAt = new Date().toISOString();
+    const nextVersion = session.version + 1;
     this.database.transaction(() => {
       const update = this.database
         .prepare(
-          "UPDATE games SET mode = ?, board = ?, current_player = ?, status = ?, winner = ?, winning_cells = ?, updated_at = ? WHERE id = ?",
+          "UPDATE games SET mode = ?, board = ?, current_player = ?, status = ?, winner = ?, winning_cells = ?, updated_at = ?, version = ? WHERE id = ? AND version = ?",
         )
         .run(
           session.mode,
@@ -225,17 +237,22 @@ export class SqliteGameSessionRepository implements GameSessionRepository {
           session.state.winner,
           JSON.stringify(session.state.winningCells),
           updatedAt,
+          nextVersion,
           session.id,
+          session.version,
         );
-      if (update.changes !== 1)
-        throw new Error(`Game session '${session.id}' was not found.`);
+      if (update.changes !== 1) {
+        if (!this.findById(session.id))
+          throw new Error(`Game session '${session.id}' was not found.`);
+        throw new RepositoryConflictError();
+      }
       this.database
         .prepare("DELETE FROM moves WHERE game_id = ?")
         .run(session.id);
-      this.insertMoves({ ...session, updatedAt });
+      this.insertMoves({ ...session, updatedAt, version: nextVersion });
       this.applyCompletion(session);
     })();
-    return { ...session, updatedAt };
+    return { ...session, updatedAt, version: nextVersion };
   }
   public saveWithRequest(
     session: GameSession,
@@ -243,10 +260,11 @@ export class SqliteGameSessionRepository implements GameSessionRepository {
   ): GameSession {
     validateSession(session);
     const updatedAt = new Date().toISOString();
+    const nextVersion = session.version + 1;
     this.database.transaction(() => {
       const update = this.database
         .prepare(
-          "UPDATE games SET mode = ?, board = ?, current_player = ?, status = ?, winner = ?, winning_cells = ?, updated_at = ? WHERE id = ?",
+          "UPDATE games SET mode = ?, board = ?, current_player = ?, status = ?, winner = ?, winning_cells = ?, updated_at = ?, version = ? WHERE id = ? AND version = ?",
         )
         .run(
           session.mode,
@@ -256,14 +274,19 @@ export class SqliteGameSessionRepository implements GameSessionRepository {
           session.state.winner,
           JSON.stringify(session.state.winningCells),
           updatedAt,
+          nextVersion,
           session.id,
+          session.version,
         );
-      if (update.changes !== 1)
-        throw new Error(`Game session '${session.id}' was not found.`);
+      if (update.changes !== 1) {
+        if (!this.findById(session.id))
+          throw new Error(`Game session '${session.id}' was not found.`);
+        throw new RepositoryConflictError();
+      }
       this.database
         .prepare("DELETE FROM moves WHERE game_id = ?")
         .run(session.id);
-      this.insertMoves({ ...session, updatedAt });
+      this.insertMoves({ ...session, updatedAt, version: nextVersion });
       this.applyCompletion(session);
       this.database
         .prepare(
@@ -275,10 +298,10 @@ export class SqliteGameSessionRepository implements GameSessionRepository {
           record.player,
           record.row,
           record.column,
-          JSON.stringify({ ...record.session, updatedAt }),
+          JSON.stringify({ ...record.session, updatedAt, version: nextVersion }),
         );
     })();
-    return { ...session, updatedAt };
+    return { ...session, updatedAt, version: nextVersion };
   }
   public reset(session: GameSession): GameSession {
     validateSession(session);
@@ -290,13 +313,19 @@ export class SqliteGameSessionRepository implements GameSessionRepository {
       moveHistory: [],
       createdAt: now,
       updatedAt: now,
+      version: 0,
     };
     this.database.transaction(() => {
-      this.database
+      const update = this.database
         .prepare(
-          "UPDATE games SET status = 'reset', current_player = NULL, winner = NULL, winning_cells = ?, updated_at = ? WHERE id = ?",
+          "UPDATE games SET status = 'reset', current_player = NULL, winner = NULL, winning_cells = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND status != 'reset'",
         )
-        .run(JSON.stringify([]), new Date().toISOString(), session.id);
+        .run(JSON.stringify([]), new Date().toISOString(), session.id, session.version);
+      if (update.changes !== 1) {
+        if (!this.findById(session.id))
+          throw new Error(`Game session '${session.id}' was not found.`);
+        throw new RepositoryConflictError();
+      }
       this.database
         .prepare(
           "INSERT INTO games (id, mode, board, current_player, status, winner, winning_cells, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
