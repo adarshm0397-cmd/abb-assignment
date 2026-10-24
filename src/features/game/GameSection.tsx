@@ -19,7 +19,7 @@ const isWinningCell = (game: GameResponse, index: number) =>
     line.some(({ row, column }) => (row - 1) * 3 + column - 1 === index),
   );
 
-export function GameSection() {
+export function GameSection({ onGameCompleted }: { onGameCompleted?: () => void }) {
   const [mode, setMode] = useState<Mode>('two-player');
   const [gameId, setGameId] = useState('');
   const [game, setGame] = useState<GameResponse | null>(null);
@@ -54,6 +54,7 @@ export function GameSection() {
       if (request === requestNumber.current && session === sessionNumber.current) {
         setGame(nextGame);
         setGameId(nextGame.id);
+        if (nextGame.status === 'won' || nextGame.status === 'draw') onGameCompleted?.();
       }
     } catch (cause) {
       if (request === requestNumber.current && session === sessionNumber.current) setError(errorMessage(cause));
@@ -129,7 +130,10 @@ export function GameSection() {
         player,
         requestId: `${id}-${request}`,
       });
-      if (isCurrent(request, session, id)) setGame(nextGame);
+      if (isCurrent(request, session, id)) {
+        setGame(nextGame);
+        if (nextGame.status === 'won' || nextGame.status === 'draw') onGameCompleted?.();
+      }
     } catch (cause) {
       if (isCurrent(request, session, id)) setError(errorMessage(cause));
     } finally {
@@ -168,12 +172,12 @@ export function GameSection() {
             <option value="computer">Play computer</option>
           </select>
         </label>
-        <button type="button" onClick={create}>New game</button>
+        <button type="button" onClick={() => void create()} disabled={loading || pendingMove || pendingUndo}>New game</button>
         <label>
           Existing game ID
           <input value={gameId} onChange={(event) => setGameId(event.target.value)} placeholder="Paste game ID" />
         </label>
-        <button type="button" onClick={load} disabled={!gameId.trim()}>Load game</button>
+        <button type="button" onClick={() => void load()} disabled={!gameId.trim() || pendingMove || pendingUndo}>Load game</button>
       </div>
       {loading && <AppStatus kind="loading" message="Loading game…" />}
       {error && <AppStatus kind="error" message={error} />}
@@ -185,7 +189,7 @@ export function GameSection() {
             {game.mode === 'computer' && <p className="game-mode-indicator">Playing against the computer</p>}
             <span>Game ID: {game.id}</span>
             <div className="game-actions">
-              <button type="button" onClick={reset} disabled={loading || pendingUndo}>Reset game</button>
+              <button type="button" onClick={() => void reset()} disabled={loading || pendingMove || pendingUndo}>Reset game</button>
               <button type="button" onClick={() => void undo()} disabled={!game.canUndo || loading || pendingMove || pendingUndo}>
                 {pendingUndo ? 'Undoing…' : 'Undo'}
               </button>
