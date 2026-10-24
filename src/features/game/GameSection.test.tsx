@@ -48,6 +48,7 @@ describe('GameSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'New game' }));
     expect(mockedCreateGame).toHaveBeenCalledWith({ mode: 'computer' });
     expect(await screen.findByText('It is X\'s turn.')).toBeInTheDocument();
+    expect(await screen.findByText('Playing against the computer')).toBeInTheDocument();
 
     const input = screen.getByLabelText('Existing game ID');
     await userEvent.clear(input);
@@ -72,6 +73,22 @@ describe('GameSection', () => {
     await waitFor(() => expect(mockedSubmitMove).toHaveBeenCalledWith('game-1', expect.objectContaining({ row: 1, column: 1, player: 'X' })));
     expect(await screen.findByText('It is O\'s turn.')).toBeInTheDocument();
     expect(screen.getByText('Move 1: X — row 1, column 1')).toBeInTheDocument();
+  });
+
+  it('allows O to move next in two-player mode', async () => {
+    mockedCreateGame.mockResolvedValue(game());
+    mockedSubmitMove.mockResolvedValue(game({
+      board: ['X', null, null, null, null, null, null, null, null],
+      currentPlayer: 'O',
+      moveHistory: [{ moveNumber: 1, player: 'X', row: 1, column: 1 }],
+    }));
+    render(<GameSection />);
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+    await screen.findByText("It is X's turn.");
+    await userEvent.click(screen.getByRole('gridcell', { name: 'Row 1, column 1' }));
+    await screen.findByText("It is O's turn.");
+
+    expect(screen.getByRole('gridcell', { name: 'Row 1, column 2' })).toBeEnabled();
   });
 
   it('renders the server history in chronological order with one-based coordinates', async () => {
@@ -206,6 +223,24 @@ describe('GameSection', () => {
     await userEvent.click(cell);
     expect(mockedSubmitMove).toHaveBeenCalledTimes(1);
     pending.resolve(game({ board: ['X', null, null, null, null, null, null, null, null], currentPlayer: 'O' }));
+  });
+
+  it('does not allow selecting a cell while the computer owns the server turn', async () => {
+    mockedCreateGame.mockResolvedValue(game({
+      mode: 'computer',
+      board: ['X', null, null, null, 'O', null, null, null, null],
+      currentPlayer: 'O',
+      moveHistory: [
+        { moveNumber: 1, player: 'X', row: 1, column: 1 },
+        { moveNumber: 2, player: 'O', row: 2, column: 2 },
+      ],
+    }));
+    render(<GameSection />);
+    await userEvent.click(screen.getByRole('button', { name: 'New game' }));
+
+    expect(await screen.findByText('Playing against the computer')).toBeInTheDocument();
+    expect(screen.getByRole('gridcell', { name: 'Row 1, column 2' })).toBeDisabled();
+    expect(mockedSubmitMove).not.toHaveBeenCalled();
   });
 
   it('keeps the confirmed state when a move fails', async () => {

@@ -30,6 +30,8 @@ const statusFor = (error: ServiceError) =>
           "DUPLICATE_REQUEST",
         ].includes(error.code)
       ? 409
+      : error.code === "INTERNAL_ERROR"
+        ? 500
       : 400;
 const jsonContent = (request: Request) =>
   Boolean(request.is("application/json"));

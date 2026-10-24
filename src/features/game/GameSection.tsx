@@ -108,7 +108,14 @@ export function GameSection() {
   };
 
   const move = async (row: number, column: number) => {
-    if (!game || game.status !== 'active' || pendingMove || pendingUndo || game.currentPlayer === null) return;
+    if (
+      !game ||
+      game.status !== 'active' ||
+      pendingMove ||
+      pendingUndo ||
+      game.currentPlayer === null ||
+      (game.mode === 'computer' && game.currentPlayer !== 'X')
+    ) return;
     const player: Player = game.currentPlayer;
     const id = game.id;
     const { request, session } = startRequest();
@@ -175,6 +182,7 @@ export function GameSection() {
         <div className="game-board-area">
           <div className="game-meta">
             <p role="status">{statusMessage(game)}</p>
+            {game.mode === 'computer' && <p className="game-mode-indicator">Playing against the computer</p>}
             <span>Game ID: {game.id}</span>
             <div className="game-actions">
               <button type="button" onClick={reset} disabled={loading || pendingUndo}>Reset game</button>
@@ -195,7 +203,7 @@ export function GameSection() {
                   aria-label={`Row ${row}, column ${column}${cell ? `, ${cell}` : ''}`}
                   className={isWinningCell(game, index) ? 'game-cell game-cell--winner' : 'game-cell'}
                   onClick={() => void move(row, column)}
-                  disabled={pendingMove || game.status !== 'active' || cell !== null}
+                  disabled={pendingMove || game.status !== 'active' || cell !== null || (game.mode === 'computer' && game.currentPlayer !== 'X')}
                 >
                   {cell}
                 </button>
